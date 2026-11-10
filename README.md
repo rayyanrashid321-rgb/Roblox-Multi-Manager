@@ -13,6 +13,8 @@ Windows desktop tool for multi-instance Roblox, game search, favorites, profiles
 - Auto-detect Roblox install
 - Auto-start multi-instance
 - Process Watcher — list running clients by PID and memory, close selected ones
+- Profile Groups — create groups and launch multiple places at once
+- Popular games quick search
 - Local session notes
 - No cookies or passwords stored
 

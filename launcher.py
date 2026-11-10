@@ -36,6 +36,7 @@ PROFILES_FILE = APP_DIR / "profiles.json"
 SETTINGS_FILE = APP_DIR / "settings.json"
 FAVS_FILE = APP_DIR / "favorites.json"
 SESSIONS_FILE = APP_DIR / "sessions.json"
+GROUPS_FILE = APP_DIR / "groups.json"
 FAVS_FILE = APP_DIR / "favorites.json"
 
 FFLAG_PRESETS = {
@@ -116,6 +117,7 @@ class App:
         self.profiles = load_json(PROFILES_FILE, [])
         self.favorites = load_json(FAVS_FILE, [])
         self.sessions = load_json(SESSIONS_FILE, [])
+        self.groups = load_json(GROUPS_FILE, {})
         self.settings = load_json(SETTINGS_FILE, {"auto_start": False})
         self.search_results = []
 
@@ -132,6 +134,7 @@ class App:
         self.t_search = tk.Frame(nb, bg="#1e1e2e")
         self.t_favs = tk.Frame(nb, bg="#1e1e2e")
         self.t_watch = tk.Frame(nb, bg="#1e1e2e")
+        self.t_groups = tk.Frame(nb, bg="#1e1e2e")
         self.t_prof = tk.Frame(nb, bg="#1e1e2e")
         self.t_ff = tk.Frame(nb, bg="#1e1e2e")
         self.t_set = tk.Frame(nb, bg="#1e1e2e")
@@ -140,6 +143,7 @@ class App:
         nb.add(self.t_search, text=" Game Search ")
         nb.add(self.t_favs, text=" Favorites ")
         nb.add(self.t_watch, text=" Watcher ")
+        nb.add(self.t_groups, text=" Groups ")
         nb.add(self.t_prof, text=" Profiles ")
         nb.add(self.t_ff, text=" FastFlags ")
         nb.add(self.t_set, text=" Settings ")
@@ -148,6 +152,7 @@ class App:
         self.build_search()
         self.build_favs()
         self.build_watch()
+        self.build_groups()
         self.build_prof()
         self.build_ff()
         self.build_set()
@@ -181,6 +186,7 @@ class App:
         self.q.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=4)
         self.q.bind("<Return>", lambda e: self.do_search())
         tk.Button(sf, text="Search", command=self.do_search, bg="#89b4fa", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=6)
+        tk.Button(sf, text="Popular", command=self.popular, bg="#cba6f7", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=4)
         self.res = tk.Listbox(f, bg="#313244", fg="#cdd6f4", font=("Segoe UI",10), selectbackground="#45475a", relief="flat")
         self.res.pack(fill=tk.BOTH, expand=True, padx=12, pady=6)
         bf = tk.Frame(f, bg="#1e1e2e"); bf.pack(pady=4)
@@ -309,6 +315,54 @@ class App:
             self.refresh_watch()
         except Exception as e:
             self.log(f"Close failed: {e}")
+
+
+    def build_groups(self):
+        f = self.t_groups
+        tk.Label(f, text="Profile Groups", font=("Segoe UI",13,"bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=6)
+        self.glist = tk.Listbox(f, bg="#313244", fg="#cdd6f4", font=("Segoe UI",10), selectbackground="#45475a", relief="flat", height=8)
+        self.glist.pack(fill=tk.X, padx=12, pady=4)
+        self.refresh_groups()
+        bf = tk.Frame(f, bg="#1e1e2e"); bf.pack(pady=4)
+        tk.Button(bf, text="New Group", command=self.new_group, bg="#a6e3a1", fg="#1e1e2e", relief="flat", width=12).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Launch Group", command=self.launch_group, bg="#89b4fa", fg="#1e1e2e", relief="flat", width=12).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Delete Group", command=self.del_group, bg="#f38ba8", fg="#1e1e2e", relief="flat", width=12).pack(side=tk.LEFT, padx=3)
+        tk.Label(f, text="Assign profiles to groups from the Profiles tab (edit later).", bg="#1e1e2e", fg="#6c7086", font=("Segoe UI",8)).pack(pady=4)
+
+    def refresh_groups(self):
+        self.glist.delete(0, tk.END)
+        for name, pids in self.groups.items():
+            self.glist.insert(tk.END, f"{name}  ({len(pids)} profiles)")
+
+    def new_group(self):
+        n = simpledialog.askstring("Group", "Group name:")
+        if n and n not in self.groups:
+            self.groups[n] = []
+            save_json(GROUPS_FILE, self.groups)
+            self.refresh_groups()
+
+    def del_group(self):
+        s = self.glist.curselection()
+        if s and messagebox.askyesno("Delete", "Delete group?"):
+            name = self.glist.get(s[0]).split("  (")[0]
+            self.groups.pop(name, None)
+            save_json(GROUPS_FILE, self.groups)
+            self.refresh_groups()
+
+    def launch_group(self):
+        s = self.glist.curselection()
+        if not s: return
+        name = self.glist.get(s[0]).split("  (")[0]
+        pids = self.groups.get(name, [])
+        for pid in pids:
+            os.startfile(f"roblox://placeId={pid}")
+            time.sleep(1.5)
+        self.log(f"Launched group {name}")
+
+    def popular(self):
+        self.q.delete(0, tk.END)
+        self.q.insert(0, "popular")
+        self.do_search()
 
     def build_prof(self):
         f = self.t_prof
