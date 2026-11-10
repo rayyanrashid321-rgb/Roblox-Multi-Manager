@@ -1,18 +1,19 @@
 # Roblox Multi Manager
 
-Simple Windows desktop tool for multi-instance Roblox, game search, launch profiles, and FastFlags.
+Windows desktop tool for multi-instance Roblox, game search, favorites, profiles, and FastFlags.
 
 ## Features
 
-- Multi-instance (holds the Roblox singleton mutex)
-- Game Search — type a name, see results with player count and visits, launch or save to profiles
-- Launch profiles (Place ID + optional private server link)
-- FastFlags editor with presets
-- Dashboard with live client count
-- Close All Roblox button
+- Multi-instance (holds Roblox singleton mutex)
+- Game Search — live results with players and visits, one-click launch
+- Favorites — save games and launch them later
+- Launch profiles (Place ID + optional private server)
+- FastFlags editor with Low End / Balanced / High Quality / FPS Focus presets
+- Dashboard with client count + Close All Roblox
 - Auto-detect Roblox install
-- Auto-start multi-instance option
-- No cookies, passwords, or account login stored
+- Auto-start multi-instance
+- Local session notes (last launches)
+- No cookies or passwords stored
 
 ## Requirements
 
@@ -25,7 +26,7 @@ Simple Windows desktop tool for multi-instance Roblox, game search, launch profi
 2. Extract it.
 3. Close all Roblox windows.
 4. Run: `python launcher.py`
-5. Click **Start Multi-Instance**, then use Game Search or Profiles.
+5. Click **Start Multi-Instance**, then use Game Search, Favorites, or Profiles.
 
 ## Make a double-click .exe
 
@@ -38,8 +39,8 @@ The .exe appears in the `dist` folder.
 
 ## Notes
 
-- FastFlags are client-side only. Restart Roblox after saving.
-- Profiles store only Place ID / link code / notes.
+- FastFlags are client-side. Restart Roblox after saving. Some flags may be ignored.
+- Profiles and favorites store only Place IDs and names.
 - Use responsibly. Multiple accounts are allowed; ban evasion and botting are not.
 
 MIT License

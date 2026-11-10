@@ -35,11 +35,14 @@ APP_DIR.mkdir(exist_ok=True)
 PROFILES_FILE = APP_DIR / "profiles.json"
 SETTINGS_FILE = APP_DIR / "settings.json"
 FAVS_FILE = APP_DIR / "favorites.json"
+SESSIONS_FILE = APP_DIR / "sessions.json"
+FAVS_FILE = APP_DIR / "favorites.json"
 
 FFLAG_PRESETS = {
-    "Performance": {"DFFlagTextureQualityOverrideEnabled": True, "DFIntTextureQualityOverride": 1, "FIntDebugForceMSAASamples": 0, "DFFlagDisableDPIScale": True},
+    "Low End": {"DFFlagTextureQualityOverrideEnabled": True, "DFIntTextureQualityOverride": 1, "FIntDebugForceMSAASamples": 0, "DFFlagDisableDPIScale": True, "DFIntCSGLevelOfDetailSwitchingDistance": 100},
     "Balanced": {"DFFlagTextureQualityOverrideEnabled": True, "DFIntTextureQualityOverride": 2, "FIntDebugForceMSAASamples": 2, "DFFlagDisableDPIScale": True},
     "High Quality": {"DFFlagTextureQualityOverrideEnabled": True, "DFIntTextureQualityOverride": 3, "FIntDebugForceMSAASamples": 4, "DFFlagDisableDPIScale": True},
+    "FPS Focus": {"DFFlagTextureQualityOverrideEnabled": True, "DFIntTextureQualityOverride": 1, "FIntDebugForceMSAASamples": 0, "DFFlagDisableDPIScale": True, "DFIntTaskSchedulerTargetFps": 240},
     "Clear": {}
 }
 
@@ -111,6 +114,8 @@ class App:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.holder = MutexHolder()
         self.profiles = load_json(PROFILES_FILE, [])
+        self.favorites = load_json(FAVS_FILE, [])
+        self.sessions = load_json(SESSIONS_FILE, [])
         self.settings = load_json(SETTINGS_FILE, {"auto_start": False})
         self.search_results = []
 
@@ -125,18 +130,21 @@ class App:
 
         self.t_dash = tk.Frame(nb, bg="#1e1e2e")
         self.t_search = tk.Frame(nb, bg="#1e1e2e")
+        self.t_favs = tk.Frame(nb, bg="#1e1e2e")
         self.t_prof = tk.Frame(nb, bg="#1e1e2e")
         self.t_ff = tk.Frame(nb, bg="#1e1e2e")
         self.t_set = tk.Frame(nb, bg="#1e1e2e")
 
         nb.add(self.t_dash, text=" Dashboard ")
         nb.add(self.t_search, text=" Game Search ")
+        nb.add(self.t_favs, text=" Favorites ")
         nb.add(self.t_prof, text=" Profiles ")
         nb.add(self.t_ff, text=" FastFlags ")
         nb.add(self.t_set, text=" Settings ")
 
         self.build_dash()
         self.build_search()
+        self.build_favs()
         self.build_prof()
         self.build_ff()
         self.build_set()
@@ -175,6 +183,7 @@ class App:
         bf = tk.Frame(f, bg="#1e1e2e"); bf.pack(pady=4)
         tk.Button(bf, text="Launch Selected", command=self.launch_selected, bg="#a6e3a1", fg="#1e1e2e", relief="flat", width=16).pack(side=tk.LEFT, padx=4)
         tk.Button(bf, text="Add to Profiles", command=self.add_from_search, bg="#fab387", fg="#1e1e2e", relief="flat", width=14).pack(side=tk.LEFT, padx=4)
+        tk.Button(bf, text="Add Favorite", command=self.add_fav, bg="#cba6f7", fg="#1e1e2e", relief="flat", width=12).pack(side=tk.LEFT, padx=4)
 
     def do_search(self):
         q = self.q.get().strip()
@@ -209,6 +218,53 @@ class App:
         save_json(PROFILES_FILE, self.profiles)
         self.refresh_prof()
         self.log(f"Added profile: {name}")
+
+
+    def build_favs(self):
+        f = self.t_favs
+        tk.Label(f, text="Favorites", font=("Segoe UI",13,"bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=6)
+        self.favlist = tk.Listbox(f, bg="#313244", fg="#cdd6f4", font=("Segoe UI",10), selectbackground="#45475a", relief="flat")
+        self.favlist.pack(fill=tk.BOTH, expand=True, padx=12, pady=4)
+        self.refresh_favs()
+        bf = tk.Frame(f, bg="#1e1e2e"); bf.pack(pady=4)
+        tk.Button(bf, text="Launch", command=self.launch_fav, bg="#89b4fa", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Remove", command=self.remove_fav, bg="#f38ba8", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+
+    def refresh_favs(self):
+        self.favlist.delete(0, tk.END)
+        for g in self.favorites:
+            self.favlist.insert(tk.END, f"{g.get('name','?')}  |  {g.get('place_id')}")
+
+    def launch_fav(self):
+        s = self.favlist.curselection()
+        if not s: return
+        g = self.favorites[s[0]]
+        os.startfile(f"roblox://placeId={g['place_id']}")
+        self.log(f"Launched favorite {g.get('name')}")
+        self.sessions.append({"name": g.get("name"), "place_id": g["place_id"], "time": time.strftime("%Y-%m-%d %H:%M")})
+        save_json(SESSIONS_FILE, self.sessions[-50:])
+
+    def remove_fav(self):
+        s = self.favlist.curselection()
+        if s and messagebox.askyesno("Remove", "Remove from favorites?"):
+            self.favorites.pop(s[0])
+            save_json(FAVS_FILE, self.favorites)
+            self.refresh_favs()
+
+
+    def add_fav(self):
+        s = self.res.curselection()
+        if not s: return
+        g = self.search_results[s[0]]
+        name = g.get("name", "Game")
+        pid = str(g.get("placeId") or g.get("rootPlaceId") or "")
+        if any(f.get("place_id") == pid for f in self.favorites):
+            messagebox.showinfo("Already", "Already in favorites")
+            return
+        self.favorites.append({"name": name, "place_id": pid})
+        save_json(FAVS_FILE, self.favorites)
+        self.refresh_favs()
+        self.log(f"Favorited: {name}")
 
     def build_prof(self):
         f = self.t_prof
