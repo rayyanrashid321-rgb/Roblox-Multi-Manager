@@ -49,29 +49,42 @@ FFLAG_PRESETS = {
 
 class MutexHolder:
     def __init__(self):
-        self.handle = None
+        self.handles = []
         self.running = False
     def start(self):
         if self.running: return False, "Already running"
-        self.handle = kernel32.CreateMutexW(None, True, "ROBLOX_singletonMutex")
-        err = ctypes.get_last_error()
-        if not self.handle: return False, f"Failed: {err}"
-        if err == ERROR_ALREADY_EXISTS:
-            if kernel32.WaitForSingleObject(self.handle, 0) not in (0, 0x80):
-                kernel32.CloseHandle(self.handle)
-                self.handle = None
-                return False, "Close all Roblox first"
+        names = ["ROBLOX_singletonMutex", "ROBLOX_singletonEvent"]
+        for name in names:
+            h = kernel32.CreateMutexW(None, True, name)
+            err = ctypes.get_last_error()
+            if not h:
+                self._cleanup()
+                return False, f"Failed to create {name}: {err}"
+            if err == ERROR_ALREADY_EXISTS:
+                # Try to take ownership
+                wait = kernel32.WaitForSingleObject(h, 100)
+                if wait not in (0, 0x80):
+                    kernel32.CloseHandle(h)
+                    self._cleanup()
+                    return False, "Close all Roblox windows first, then try again"
+            self.handles.append(h)
         self.running = True
         threading.Thread(target=self._keep, daemon=True).start()
-        return True, "Multi-instance active"
+        return True, "Multi-instance active (both locks held)"
     def _keep(self):
-        while self.running: time.sleep(1)
+        while self.running:
+            time.sleep(1)
+    def _cleanup(self):
+        for h in self.handles:
+            try:
+                kernel32.ReleaseMutex(h)
+                kernel32.CloseHandle(h)
+            except:
+                pass
+        self.handles.clear()
     def stop(self):
         self.running = False
-        if self.handle:
-            kernel32.ReleaseMutex(self.handle)
-            kernel32.CloseHandle(self.handle)
-            self.handle = None
+        self._cleanup()
         return "Stopped"
 
 def find_roblox_exe():
