@@ -109,7 +109,7 @@ def search_roblox_games(query, limit=20):
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Roblox Multi Manager")
+        self.root.title("Roblox Multi Manager  •  Best Practical Build")
         self.root.geometry("860x620")
         self.root.configure(bg="#1e1e2e")
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -163,7 +163,8 @@ class App:
 
     def build_dash(self):
         f = self.t_dash
-        tk.Label(f, text="Roblox Multi Manager", font=("Segoe UI", 16, "bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=8)
+        tk.Label(f, text="Roblox Multi Manager", font=("Segoe UI", 16, "bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=6)
+        tk.Label(f, text="Best practical multi-instance build", font=("Segoe UI", 9), bg="#1e1e2e", fg="#6c7086").pack()
         self.status = tk.Label(f, text="Multi-instance: Stopped", bg="#1e1e2e", fg="#f38ba8", font=("Segoe UI", 11))
         self.status.pack()
         bf = tk.Frame(f, bg="#1e1e2e"); bf.pack(pady=6)

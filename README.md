@@ -1,49 +1,63 @@
 # Roblox Multi Manager
 
-Windows desktop tool for multi-instance Roblox, game search, favorites, profiles, and FastFlags.
+Best practical version of a Windows multi-instance Roblox tool built in Python.
 
 ## Features
 
-- Multi-instance (holds Roblox singleton mutex)
-- Game Search — live results with players and visits, one-click launch
-- Favorites — save games and launch them later
-- Launch profiles (Place ID + optional private server)
-- FastFlags editor with Low End / Balanced / High Quality / FPS Focus presets
-- Dashboard with client count + Close All Roblox
-- Auto-detect Roblox install
-- Auto-start multi-instance
-- Process Watcher — list running clients by PID and memory, close selected ones
-- Profile Groups — create groups and launch multiple places at once
-- Popular games quick search
-- Local session notes
+- Multi-instance (holds the Roblox singleton mutex)
+- Launch Many — start up to 50 windows with a delay
+- Game Search + Popular games
+- Favorites
+- Profiles and Profile Groups
+- FastFlags editor with presets (Low End, Balanced, High Quality, FPS Focus)
+- Process Watcher — list clients by PID/memory and close selected
+- Dashboard with live client count
+- Close All Roblox
+- Auto-start multi-instance option
 - No cookies or passwords stored
 
 ## Requirements
 
 - Windows 10 or 11
-- Python 3.8+ (or build an .exe)
+- Python 3.8 or newer (only if you run the .py file)
 
-## Quick Start
+## How to download and use
 
-1. Download the ZIP from this repo.
-2. Extract it.
-3. Close all Roblox windows.
-4. Run: `python launcher.py`
-5. Click **Start Multi-Instance**, then use Game Search, Favorites, or Profiles.
+### Option 1: Run the Python file (simplest)
 
-## Make a double-click .exe
+1. Go to https://github.com/rayyanrashid321-rgb/Roblox-Multi-Manager
+2. Click the green **Code** button → **Download ZIP**
+3. Extract the ZIP to a folder
+4. Close every Roblox window
+5. Open the folder, right-click inside it → **Open in Terminal** (or PowerShell)
+6. Type:
+   ```
+   python launcher.py
+   ```
+7. Click **Start Multi-Instance**, then use the other buttons/tabs
 
-```powershell
-pip install pyinstaller
-pyinstaller --onefile --windowed --name RobloxMulti launcher.py
-```
+### Option 2: Make a double-click .exe (no Python needed later)
 
-The .exe appears in the `dist` folder.
+1. Do steps 1–3 above
+2. Open PowerShell in the extracted folder and run:
+   ```powershell
+   pip install pyinstaller
+   pyinstaller --onefile --windowed --name RobloxMulti launcher.py
+   ```
+3. When it finishes, open the new `dist` folder
+4. Double-click **RobloxMulti.exe**
+5. You can move that .exe anywhere and run it like a normal app
+
+## First-time tips
+
+- Always start multi-instance **before** opening Roblox
+- Use **Launch Many** if you want a lot of windows (add a delay of 2–5 seconds)
+- Use the **Watcher** tab to see or close individual clients
+- FastFlags need a Roblox restart to take effect
 
 ## Notes
 
-- FastFlags are client-side. Restart Roblox after saving. Some flags may be ignored.
-- Profiles and favorites store only Place IDs and names.
-- Use responsibly. Multiple accounts are allowed; ban evasion and botting are not.
+- Profiles, favorites, and groups store only Place IDs and names
+- Use responsibly. Multiple accounts are allowed; ban evasion and botting are not
 
 MIT License
