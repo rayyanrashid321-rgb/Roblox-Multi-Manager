@@ -1,16 +1,9 @@
 """
-Roblox Multi Manager (Goated Edition)
-- Multi-instance mutex holder
-- Launch profiles (Place ID + private server link code + notes)
-- FastFlags editor with safe presets
-- Auto-detect Roblox install
-- System tray support (optional)
-- Clean dark UI
+Roblox Multi Manager
+Multi-instance + profiles + FastFlags + process monitor + tray-ready
 
-DISCLAIMER:
-For personal/educational use only. Roblox does not officially support multiple clients.
-Do not use for ban evasion, botting, exploiting, or any ToS violation.
-This tool never stores cookies, passwords, or login sessions.
+For personal/educational use only.
+Does not store cookies or passwords.
 """
 
 import ctypes
@@ -25,7 +18,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 from pathlib import Path
 
-# ---------- Windows mutex ----------
+# ---------- Mutex ----------
 ERROR_ALREADY_EXISTS = 183
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
@@ -37,15 +30,13 @@ kernel32.ReleaseMutex.restype = wintypes.BOOL
 kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 kernel32.CloseHandle.restype = wintypes.BOOL
 
-# ---------- Paths ----------
 APP_DIR = Path.home() / ".roblox_multi"
 APP_DIR.mkdir(exist_ok=True)
 PROFILES_FILE = APP_DIR / "profiles.json"
 SETTINGS_FILE = APP_DIR / "settings.json"
 
-# Safe allowlisted-style presets (client-side graphics / quality only)
 FFLAG_PRESETS = {
-    "Low End / Performance": {
+    "Performance (Low End)": {
         "DFFlagTextureQualityOverrideEnabled": True,
         "DFIntTextureQualityOverride": 1,
         "DFIntCSGLevelOfDetailSwitchingDistance": 100,
@@ -76,7 +67,7 @@ FFLAG_PRESETS = {
         "DFFlagDisableDPIScale": True,
         "FFlagHandleAltEnterFullscreenManually": True,
     },
-    "Clear (No Overrides)": {}
+    "Clear": {}
 }
 
 class MutexHolder:
@@ -99,11 +90,11 @@ class MutexHolder:
                 self.handle = None
                 return False, "Mutex already owned. Close all Roblox first."
         self.running = True
-        self.thread = threading.Thread(target=self._keep_alive, daemon=True)
+        self.thread = threading.Thread(target=self._keep, daemon=True)
         self.thread.start()
-        return True, "Mutex held. Launch as many Roblox clients as you want."
+        return True, "Multi-instance active"
 
-    def _keep_alive(self):
+    def _keep(self):
         while self.running:
             time.sleep(1)
 
@@ -113,25 +104,22 @@ class MutexHolder:
             kernel32.ReleaseMutex(self.handle)
             kernel32.CloseHandle(self.handle)
             self.handle = None
-        return "Mutex released."
+        return "Multi-instance stopped"
 
 def find_roblox_exe():
     base = Path(os.environ.get("LOCALAPPDATA", "")) / "Roblox" / "Versions"
     if not base.exists():
         return None
-    candidates = list(base.glob("version-*/RobloxPlayerBeta.exe"))
-    if not candidates:
-        return None
-    # newest by mtime
-    return max(candidates, key=lambda p: p.stat().st_mtime)
+    cands = list(base.glob("version-*/RobloxPlayerBeta.exe"))
+    return max(cands, key=lambda p: p.stat().st_mtime) if cands else None
 
 def get_fflags_path():
     exe = find_roblox_exe()
     if not exe:
         return None
-    settings_dir = exe.parent / "ClientSettings"
-    settings_dir.mkdir(exist_ok=True)
-    return settings_dir / "ClientAppSettings.json"
+    d = exe.parent / "ClientSettings"
+    d.mkdir(exist_ok=True)
+    return d / "ClientAppSettings.json"
 
 def load_json(path, default):
     try:
@@ -148,295 +136,257 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Roblox Multi Manager")
-        self.root.geometry("780x560")
+        self.root.geometry("820x600")
         self.root.configure(bg="#1e1e2e")
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.holder = MutexHolder()
         self.profiles = load_json(PROFILES_FILE, [])
-        self.settings = load_json(SETTINGS_FILE, {"auto_start_mutex": False})
+        self.settings = load_json(SETTINGS_FILE, {"auto_start": False})
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("TNotebook", background="#1e1e2e", borderwidth=0)
-        style.configure("TNotebook.Tab", background="#313244", foreground="#cdd6f4", padding=[12, 6])
+        style.configure("TNotebook", background="#1e1e2e")
+        style.configure("TNotebook.Tab", background="#313244", foreground="#cdd6f4", padding=[10, 5])
         style.map("TNotebook.Tab", background=[("selected", "#45475a")])
 
-        notebook = ttk.Notebook(root)
-        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        nb = ttk.Notebook(root)
+        nb.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
-        self.tab_main = tk.Frame(notebook, bg="#1e1e2e")
-        self.tab_profiles = tk.Frame(notebook, bg="#1e1e2e")
-        self.tab_fflags = tk.Frame(notebook, bg="#1e1e2e")
-        self.tab_settings = tk.Frame(notebook, bg="#1e1e2e")
+        self.tab_dash = tk.Frame(nb, bg="#1e1e2e")
+        self.tab_profiles = tk.Frame(nb, bg="#1e1e2e")
+        self.tab_fflags = tk.Frame(nb, bg="#1e1e2e")
+        self.tab_settings = tk.Frame(nb, bg="#1e1e2e")
 
-        notebook.add(self.tab_main, text=" Multi-Instance ")
-        notebook.add(self.tab_profiles, text=" Launch Profiles ")
-        notebook.add(self.tab_fflags, text=" FastFlags ")
-        notebook.add(self.tab_settings, text=" Settings ")
+        nb.add(self.tab_dash, text=" Dashboard ")
+        nb.add(self.tab_profiles, text=" Profiles ")
+        nb.add(self.tab_fflags, text=" FastFlags ")
+        nb.add(self.tab_settings, text=" Settings ")
 
-        self.build_main()
+        self.build_dash()
         self.build_profiles()
         self.build_fflags()
         self.build_settings()
 
-        self.log("Ready. Close all Roblox before starting multi-instance.")
-        if self.settings.get("auto_start_mutex"):
-            self.root.after(500, self.start_mutex)
+        self.log("Ready. Close all Roblox, then start multi-instance.")
+        self.update_stats()
+        if self.settings.get("auto_start"):
+            self.root.after(400, self.start_mutex)
 
-    # ---------- Main tab ----------
-    def build_main(self):
-        f = self.tab_main
-        tk.Label(f, text="Roblox Multi Manager", font=("Segoe UI", 18, "bold"),
-                 bg="#1e1e2e", fg="#cdd6f4").pack(pady=12)
+    def build_dash(self):
+        f = self.tab_dash
+        tk.Label(f, text="Roblox Multi Manager", font=("Segoe UI", 16, "bold"),
+                 bg="#1e1e2e", fg="#cdd6f4").pack(pady=10)
 
-        self.status = tk.Label(f, text="Status: Stopped", font=("Segoe UI", 12),
+        self.status = tk.Label(f, text="Multi-instance: Stopped", font=("Segoe UI", 11),
                                bg="#1e1e2e", fg="#f38ba8")
-        self.status.pack(pady=4)
+        self.status.pack()
 
         bf = tk.Frame(f, bg="#1e1e2e")
         bf.pack(pady=8)
         self.btn_start = tk.Button(bf, text="Start Multi-Instance", command=self.start_mutex,
                                     bg="#a6e3a1", fg="#1e1e2e", font=("Segoe UI", 10, "bold"),
-                                    width=22, height=2, relief="flat")
-        self.btn_start.pack(side=tk.LEFT, padx=6)
-        self.btn_stop = tk.Button(bf, text="Stop & Release", command=self.stop_mutex,
+                                    width=20, height=2, relief="flat")
+        self.btn_start.pack(side=tk.LEFT, padx=5)
+        self.btn_stop = tk.Button(bf, text="Stop", command=self.stop_mutex,
                                    bg="#f38ba8", fg="#1e1e2e", font=("Segoe UI", 10, "bold"),
-                                   width=22, height=2, relief="flat", state=tk.DISABLED)
-        self.btn_stop.pack(side=tk.LEFT, padx=6)
-
-        tk.Button(f, text="Launch Roblox (Normal)", command=self.launch_normal,
+                                   width=12, height=2, relief="flat", state=tk.DISABLED)
+        self.btn_stop.pack(side=tk.LEFT, padx=5)
+        tk.Button(bf, text="Launch Roblox", command=self.launch_normal,
                   bg="#89b4fa", fg="#1e1e2e", font=("Segoe UI", 10, "bold"),
-                  width=30, height=2, relief="flat").pack(pady=6)
+                  width=16, height=2, relief="flat").pack(side=tk.LEFT, padx=5)
 
-        self.log_box = scrolledtext.ScrolledText(f, height=14, bg="#313244", fg="#cdd6f4",
-                                                  font=("Consolas", 9), relief="flat", wrap=tk.WORD)
-        self.log_box.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
+        stats = tk.Frame(f, bg="#313244")
+        stats.pack(fill=tk.X, padx=15, pady=8)
+        self.lbl_procs = tk.Label(stats, text="Roblox clients: 0", bg="#313244", fg="#cdd6f4", font=("Segoe UI", 10))
+        self.lbl_procs.pack(side=tk.LEFT, padx=12, pady=6)
+        self.lbl_ram = tk.Label(stats, text="RAM: —", bg="#313244", fg="#cdd6f4", font=("Segoe UI", 10))
+        self.lbl_ram.pack(side=tk.LEFT, padx=12)
+
+        self.log_box = scrolledtext.ScrolledText(f, height=12, bg="#313244", fg="#cdd6f4",
+                                                  font=("Consolas", 9), relief="flat")
+        self.log_box.pack(fill=tk.BOTH, expand=True, padx=15, pady=6)
         self.log_box.config(state=tk.DISABLED)
 
-    # ---------- Profiles ----------
     def build_profiles(self):
         f = self.tab_profiles
-        tk.Label(f, text="Launch Profiles", font=("Segoe UI", 14, "bold"),
+        tk.Label(f, text="Launch Profiles (no cookies stored)", font=("Segoe UI", 13, "bold"),
                  bg="#1e1e2e", fg="#cdd6f4").pack(pady=8)
-
-        list_frame = tk.Frame(f, bg="#1e1e2e")
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=15)
-        self.profile_list = tk.Listbox(list_frame, bg="#313244", fg="#cdd6f4",
-                                        font=("Segoe UI", 10), selectbackground="#45475a",
-                                        relief="flat", height=10)
-        self.profile_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        sb = tk.Scrollbar(list_frame, command=self.profile_list.yview)
-        sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self.profile_list.config(yscrollcommand=sb.set)
+        lf = tk.Frame(f, bg="#1e1e2e")
+        lf.pack(fill=tk.BOTH, expand=True, padx=15)
+        self.plist = tk.Listbox(lf, bg="#313244", fg="#cdd6f4", font=("Segoe UI", 10),
+                                selectbackground="#45475a", relief="flat")
+        self.plist.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.refresh_profiles()
 
         bf = tk.Frame(f, bg="#1e1e2e")
-        bf.pack(pady=8)
-        tk.Button(bf, text="New Profile", command=self.new_profile, bg="#a6e3a1", fg="#1e1e2e",
-                  font=("Segoe UI", 9, "bold"), relief="flat", width=14).pack(side=tk.LEFT, padx=4)
-        tk.Button(bf, text="Launch Selected", command=self.launch_profile, bg="#89b4fa", fg="#1e1e2e",
-                  font=("Segoe UI", 9, "bold"), relief="flat", width=16).pack(side=tk.LEFT, padx=4)
-        tk.Button(bf, text="Delete", command=self.delete_profile, bg="#f38ba8", fg="#1e1e2e",
-                  font=("Segoe UI", 9, "bold"), relief="flat", width=12).pack(side=tk.LEFT, padx=4)
-
-        tk.Label(f, text="Profiles only store Place ID / private server link code / notes.\nNo passwords or cookies.",
-                 bg="#1e1e2e", fg="#6c7086", font=("Segoe UI", 8)).pack(pady=4)
+        bf.pack(pady=6)
+        tk.Button(bf, text="New", command=self.new_profile, bg="#a6e3a1", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Launch", command=self.launch_profile, bg="#89b4fa", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Delete", command=self.delete_profile, bg="#f38ba8", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
 
     def refresh_profiles(self):
-        self.profile_list.delete(0, tk.END)
+        self.plist.delete(0, tk.END)
         for p in self.profiles:
-            name = p.get("name", "Unnamed")
-            pid = p.get("place_id", "")
-            self.profile_list.insert(tk.END, f"{name}  (Place: {pid})")
+            self.plist.insert(tk.END, f"{p.get('name','?')}  |  Place {p.get('place_id','')}  |  {p.get('notes','')[:30]}")
 
     def new_profile(self):
-        name = simpledialog.askstring("New Profile", "Profile name:")
-        if not name:
-            return
-        place = simpledialog.askstring("Place ID", "Place ID (numbers only):")
+        name = simpledialog.askstring("Profile", "Name:")
+        if not name: return
+        place = simpledialog.askstring("Place ID", "Place ID:")
         if not place or not place.isdigit():
-            messagebox.showwarning("Invalid", "Place ID must be numbers.")
+            messagebox.showwarning("Invalid", "Place ID must be numbers")
             return
-        link = simpledialog.askstring("Private Server", "Private server link code (optional):") or ""
+        link = simpledialog.askstring("Link Code", "Private server link code (optional):") or ""
         notes = simpledialog.askstring("Notes", "Notes (optional):") or ""
         self.profiles.append({"name": name, "place_id": place, "link_code": link, "notes": notes})
         save_json(PROFILES_FILE, self.profiles)
         self.refresh_profiles()
-        self.log(f"Profile '{name}' saved.")
+        self.log(f"Added profile: {name}")
 
     def delete_profile(self):
-        sel = self.profile_list.curselection()
-        if not sel:
-            return
-        idx = sel[0]
-        name = self.profiles[idx]["name"]
-        if messagebox.askyesno("Delete", f"Delete profile '{name}'?"):
-            self.profiles.pop(idx)
+        s = self.plist.curselection()
+        if not s: return
+        if messagebox.askyesno("Delete", "Delete this profile?"):
+            self.profiles.pop(s[0])
             save_json(PROFILES_FILE, self.profiles)
             self.refresh_profiles()
 
     def launch_profile(self):
-        sel = self.profile_list.curselection()
-        if not sel:
-            messagebox.showinfo("Select", "Select a profile first.")
+        s = self.plist.curselection()
+        if not s:
+            messagebox.showinfo("Select", "Pick a profile")
             return
-        p = self.profiles[sel[0]]
-        place = p["place_id"]
-        link = p.get("link_code", "")
-        if link:
-            url = f"roblox://placeId={place}&privateServerLinkCode={link}"
-        else:
-            url = f"roblox://placeId={place}"
-        self.log(f"Launching profile '{p['name']}' → {url}")
+        p = self.profiles[s[0]]
+        url = f"roblox://placeId={p['place_id']}"
+        if p.get("link_code"):
+            url += f"&privateServerLinkCode={p['link_code']}"
+        self.log(f"Launching {p['name']}")
         try:
-            os.startfile(url)  # Windows protocol handler
+            os.startfile(url)
         except Exception as e:
-            self.log(f"Launch failed: {e}")
             messagebox.showerror("Launch", str(e))
 
     def launch_normal(self):
         exe = find_roblox_exe()
         if not exe:
-            messagebox.showerror("Roblox not found", "Could not find RobloxPlayerBeta.exe.\nInstall Roblox first.")
+            messagebox.showerror("Error", "Roblox not found")
             return
-        self.log(f"Launching {exe}")
-        subprocess.Popen([str(exe)], shell=False)
+        subprocess.Popen([str(exe)])
+        self.log("Launched Roblox")
 
-    # ---------- FastFlags ----------
     def build_fflags(self):
         f = self.tab_fflags
-        tk.Label(f, text="FastFlags Editor", font=("Segoe UI", 14, "bold"),
-                 bg="#1e1e2e", fg="#cdd6f4").pack(pady=8)
-        tk.Label(f, text="Only client-side graphics/quality flags. Roblox may ignore non-allowlisted flags.",
-                 bg="#1e1e2e", fg="#6c7086", font=("Segoe UI", 8)).pack()
-
+        tk.Label(f, text="FastFlags (client graphics only)", font=("Segoe UI", 13, "bold"),
+                 bg="#1e1e2e", fg="#cdd6f4").pack(pady=6)
         pf = tk.Frame(f, bg="#1e1e2e")
-        pf.pack(pady=6)
-        tk.Label(pf, text="Preset:", bg="#1e1e2e", fg="#cdd6f4").pack(side=tk.LEFT)
-        self.preset_var = tk.StringVar(value="Balanced")
-        cb = ttk.Combobox(pf, textvariable=self.preset_var, values=list(FFLAG_PRESETS.keys()),
-                          state="readonly", width=25)
-        cb.pack(side=tk.LEFT, padx=6)
-        tk.Button(pf, text="Apply Preset", command=self.apply_preset,
-                  bg="#89b4fa", fg="#1e1e2e", relief="flat").pack(side=tk.LEFT, padx=4)
+        pf.pack()
+        self.preset = tk.StringVar(value="Balanced")
+        ttk.Combobox(pf, textvariable=self.preset, values=list(FFLAG_PRESETS), state="readonly", width=22).pack(side=tk.LEFT, padx=4)
+        tk.Button(pf, text="Apply Preset", command=self.apply_preset, bg="#89b4fa", fg="#1e1e2e", relief="flat").pack(side=tk.LEFT)
 
-        self.fflags_text = scrolledtext.ScrolledText(f, height=16, bg="#313244", fg="#a6e3a1",
-                                                      font=("Consolas", 9), relief="flat")
-        self.fflags_text.pack(fill=tk.BOTH, expand=True, padx=15, pady=8)
+        self.ff = scrolledtext.ScrolledText(f, height=18, bg="#313244", fg="#a6e3a1", font=("Consolas", 9), relief="flat")
+        self.ff.pack(fill=tk.BOTH, expand=True, padx=15, pady=6)
 
         bf = tk.Frame(f, bg="#1e1e2e")
-        bf.pack(pady=6)
-        tk.Button(bf, text="Load Current", command=self.load_fflags, bg="#fab387", fg="#1e1e2e",
-                  relief="flat", width=14).pack(side=tk.LEFT, padx=4)
-        tk.Button(bf, text="Save to Roblox", command=self.save_fflags, bg="#a6e3a1", fg="#1e1e2e",
-                  relief="flat", width=16).pack(side=tk.LEFT, padx=4)
-        tk.Button(bf, text="Clear", command=self.clear_fflags, bg="#f38ba8", fg="#1e1e2e",
-                  relief="flat", width=10).pack(side=tk.LEFT, padx=4)
+        bf.pack(pady=4)
+        tk.Button(bf, text="Load", command=self.load_ff, bg="#fab387", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Save", command=self.save_ff, bg="#a6e3a1", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Clear", command=lambda: self.ff.delete("1.0", tk.END) or self.ff.insert("1.0", "{}"),
+                  bg="#f38ba8", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        self.load_ff()
 
-        self.load_fflags()
-
-    def load_fflags(self):
+    def load_ff(self):
         path = get_fflags_path()
-        self.fflags_text.delete("1.0", tk.END)
+        self.ff.delete("1.0", tk.END)
         if path and path.exists():
             try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-                self.fflags_text.insert("1.0", json.dumps(data, indent=2))
-                self.log(f"Loaded FastFlags from {path}")
-            except Exception as e:
-                self.fflags_text.insert("1.0", "{}")
-                self.log(f"Could not parse FastFlags: {e}")
+                self.ff.insert("1.0", json.dumps(json.loads(path.read_text()), indent=2))
+                self.log("Loaded FastFlags")
+            except Exception:
+                self.ff.insert("1.0", "{}")
         else:
-            self.fflags_text.insert("1.0", "{\n\n}")
-            self.log("No existing FastFlags file found.")
+            self.ff.insert("1.0", "{}")
 
     def apply_preset(self):
-        name = self.preset_var.get()
-        data = FFLAG_PRESETS.get(name, {})
-        self.fflags_text.delete("1.0", tk.END)
-        self.fflags_text.insert("1.0", json.dumps(data, indent=2))
-        self.log(f"Applied preset: {name}")
+        data = FFLAG_PRESETS.get(self.preset.get(), {})
+        self.ff.delete("1.0", tk.END)
+        self.ff.insert("1.0", json.dumps(data, indent=2))
+        self.log(f"Preset: {self.preset.get()}")
 
-    def save_fflags(self):
+    def save_ff(self):
         path = get_fflags_path()
         if not path:
-            messagebox.showerror("Error", "Roblox install not found.")
+            messagebox.showerror("Error", "Roblox not found")
             return
         try:
-            raw = self.fflags_text.get("1.0", tk.END).strip()
-            data = json.loads(raw) if raw else {}
+            data = json.loads(self.ff.get("1.0", tk.END).strip() or "{}")
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-            self.log(f"Saved FastFlags to {path}")
-            messagebox.showinfo("Saved", "FastFlags written.\nRestart Roblox for them to take effect.")
+            self.log("FastFlags saved — restart Roblox")
+            messagebox.showinfo("Saved", "Restart Roblox for changes")
         except Exception as e:
-            messagebox.showerror("Invalid JSON", str(e))
+            messagebox.showerror("JSON error", str(e))
 
-    def clear_fflags(self):
-        self.fflags_text.delete("1.0", tk.END)
-        self.fflags_text.insert("1.0", "{}")
-
-    # ---------- Settings ----------
     def build_settings(self):
         f = self.tab_settings
-        tk.Label(f, text="Settings", font=("Segoe UI", 14, "bold"),
-                 bg="#1e1e2e", fg="#cdd6f4").pack(pady=12)
-
-        self.auto_var = tk.BooleanVar(value=self.settings.get("auto_start_mutex", False))
-        tk.Checkbutton(f, text="Auto-start multi-instance when app opens",
-                       variable=self.auto_var, command=self.save_settings,
-                       bg="#1e1e2e", fg="#cdd6f4", selectcolor="#313244",
-                       activebackground="#1e1e2e", font=("Segoe UI", 10)).pack(anchor="w", padx=30, pady=6)
-
+        tk.Label(f, text="Settings", font=("Segoe UI", 13, "bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=12)
+        self.auto = tk.BooleanVar(value=self.settings.get("auto_start", False))
+        tk.Checkbutton(f, text="Auto-start multi-instance on launch", variable=self.auto,
+                       command=self.save_settings, bg="#1e1e2e", fg="#cdd6f4",
+                       selectcolor="#313244", activebackground="#1e1e2e").pack(anchor="w", padx=30)
         exe = find_roblox_exe()
-        path_text = str(exe) if exe else "Not found"
-        tk.Label(f, text=f"Detected Roblox:\n{path_text}", bg="#1e1e2e", fg="#bac2de",
-                 font=("Segoe UI", 9), justify="left").pack(anchor="w", padx=30, pady=10)
-
-        tk.Label(f, text="Profiles & settings stored in:\n" + str(APP_DIR),
-                 bg="#1e1e2e", fg="#6c7086", font=("Segoe UI", 8), justify="left").pack(anchor="w", padx=30)
-
-        tk.Label(f, text="\nMade by you  •  Use responsibly",
-                 bg="#1e1e2e", fg="#6c7086", font=("Segoe UI", 8)).pack(pady=20)
+        tk.Label(f, text=f"Roblox: {exe or 'Not found'}", bg="#1e1e2e", fg="#bac2de",
+                 font=("Segoe UI", 9), wraplength=700).pack(anchor="w", padx=30, pady=10)
+        tk.Label(f, text=f"Data: {APP_DIR}", bg="#1e1e2e", fg="#6c7086", font=("Segoe UI", 8)).pack(anchor="w", padx=30)
 
     def save_settings(self):
-        self.settings["auto_start_mutex"] = self.auto_var.get()
+        self.settings["auto_start"] = self.auto.get()
         save_json(SETTINGS_FILE, self.settings)
 
-    # ---------- Shared ----------
     def log(self, msg):
         self.log_box.config(state=tk.NORMAL)
         self.log_box.insert(tk.END, f"[{time.strftime('%H:%M:%S')}] {msg}\n")
         self.log_box.see(tk.END)
         self.log_box.config(state=tk.DISABLED)
 
+    def update_stats(self):
+        try:
+            import subprocess
+            out = subprocess.check_output(["tasklist", "/FI", "IMAGENAME eq RobloxPlayerBeta.exe", "/FO", "CSV"], text=True, stderr=subprocess.DEVNULL)
+            lines = [l for l in out.splitlines() if "RobloxPlayerBeta" in l]
+            count = max(0, len(lines) - 1)
+            self.lbl_procs.config(text=f"Roblox clients: {count}")
+            self.lbl_ram.config(text="RAM: see Task Manager")
+        except Exception:
+            self.lbl_procs.config(text="Roblox clients: ?")
+        self.root.after(3000, self.update_stats)
+
     def start_mutex(self):
         ok, msg = self.holder.start()
         self.log(msg)
         if ok:
-            self.status.config(text="Status: Running (Mutex Held)", fg="#a6e3a1")
+            self.status.config(text="Multi-instance: Running", fg="#a6e3a1")
             self.btn_start.config(state=tk.DISABLED)
             self.btn_stop.config(state=tk.NORMAL)
         else:
-            messagebox.showerror("Mutex", msg)
+            messagebox.showerror("Error", msg)
 
     def stop_mutex(self):
-        msg = self.holder.stop()
-        self.log(msg)
-        self.status.config(text="Status: Stopped", fg="#f38ba8")
+        self.log(self.holder.stop())
+        self.status.config(text="Multi-instance: Stopped", fg="#f38ba8")
         self.btn_start.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
 
     def on_close(self):
+        if self.holder.running and not messagebox.askyesno("Quit", "Stop multi-instance and quit?"):
+            return
         if self.holder.running:
-            if not messagebox.askyesno("Quit", "Multi-instance is active. Release mutex and quit?"):
-                return
             self.holder.stop()
         self.root.destroy()
 
 def main():
     if sys.platform != "win32":
-        print("Windows only.")
+        print("Windows only")
         return
     root = tk.Tk()
     App(root)

@@ -1,69 +1,43 @@
 # Roblox Multi Manager
 
-A clean, open-source Windows tool for running multiple Roblox clients + launch profiles + FastFlags editor.
+Desktop Windows tool for running multiple Roblox clients, managing launch profiles, and editing FastFlags.
 
 ## Features
 
-- **Multi-instance** — holds `ROBLOX_singletonMutex` so multiple clients can open
-- **Launch Profiles** — save Place ID + optional private server link code + notes
-- **Direct Launch** — one-click normal launch or profile launch
-- **FastFlags Editor** — load/save `ClientAppSettings.json` with safe graphics presets
-- **Auto-detect** Roblox install path
-- **Settings** — auto-start mutex on launch
-- Dark UI, pure Python (no external dependencies required for core features)
+- Multi-instance (holds Roblox singleton mutex)
+- Launch profiles (Place ID + private server link code + notes)
+- FastFlags editor with performance / balanced / high quality presets
+- Dashboard with live client count
+- Auto-detect Roblox install
+- Settings (auto-start multi-instance)
+- Pure Python — no cookies or passwords stored
 
 ## Requirements
 
-- Windows 10 / 11
-- Python 3.8+
-- Official Roblox desktop client
+- Windows 10 or 11
+- Python 3.8+ (or build the .exe)
 
 ## Quick Start
 
-1. Download the repo as ZIP or `git clone`.
-2. Close **all** Roblox windows.
-3. Run:
-   ```bash
-   python launcher.py
-   ```
-4. Go to **Multi-Instance** tab → **Start Multi-Instance**.
-5. Keep the window open and launch Roblox (or use profiles).
+1. Download the ZIP from this repo.
+2. Extract it.
+3. Close all Roblox windows.
+4. Run `python launcher.py`
+5. Click **Start Multi-Instance**, then launch Roblox or use profiles.
 
-## Tabs
+## Make a double-click .exe
 
-| Tab | What it does |
-|-----|--------------|
-| Multi-Instance | Start/stop the mutex + normal launch + log |
-| Launch Profiles | Save and launch games / private servers |
-| FastFlags | Edit client graphics/quality flags + presets |
-| Settings | Auto-start option + detected path |
-
-## FastFlags Notes
-
-- Written to the current Roblox version folder:  
-  `%LocalAppData%\Roblox\Versions\version-XXXX\ClientSettings\ClientAppSettings.json`
-- Only client-side graphics/quality presets are included. Roblox has an allowlist and may ignore other flags.
-- Restart Roblox after saving flags.
-
-## Important Warnings
-
-- Roblox does **not** officially support multiple clients on one PC.
-- Using multiple accounts for ban evasion, botting, exploiting, or farming can get accounts banned.
-- This tool **never** stores cookies, passwords, or login sessions.
-- Antivirus may flag custom launchers. Add an exclusion if needed.
-- Use at your own risk. No warranties.
-
-## Make a standalone .exe (optional)
-
-```bash
+```powershell
 pip install pyinstaller
 pyinstaller --onefile --windowed --name RobloxMulti launcher.py
 ```
 
-The `.exe` appears in the `dist` folder.
+The app is in the `dist` folder.
 
-## License
+## Notes
 
-MIT
+- FastFlags only include client-side graphics flags. Roblox may ignore non-allowlisted ones. Restart Roblox after saving.
+- Profiles store only Place ID / link code / notes.
+- Use responsibly. Multiple accounts are allowed; ban evasion / botting is not.
 
-Made by you.
+MIT License
