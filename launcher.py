@@ -131,6 +131,7 @@ class App:
         self.t_dash = tk.Frame(nb, bg="#1e1e2e")
         self.t_search = tk.Frame(nb, bg="#1e1e2e")
         self.t_favs = tk.Frame(nb, bg="#1e1e2e")
+        self.t_watch = tk.Frame(nb, bg="#1e1e2e")
         self.t_prof = tk.Frame(nb, bg="#1e1e2e")
         self.t_ff = tk.Frame(nb, bg="#1e1e2e")
         self.t_set = tk.Frame(nb, bg="#1e1e2e")
@@ -138,6 +139,7 @@ class App:
         nb.add(self.t_dash, text=" Dashboard ")
         nb.add(self.t_search, text=" Game Search ")
         nb.add(self.t_favs, text=" Favorites ")
+        nb.add(self.t_watch, text=" Watcher ")
         nb.add(self.t_prof, text=" Profiles ")
         nb.add(self.t_ff, text=" FastFlags ")
         nb.add(self.t_set, text=" Settings ")
@@ -145,6 +147,7 @@ class App:
         self.build_dash()
         self.build_search()
         self.build_favs()
+        self.build_watch()
         self.build_prof()
         self.build_ff()
         self.build_set()
@@ -266,6 +269,47 @@ class App:
         self.refresh_favs()
         self.log(f"Favorited: {name}")
 
+
+    def build_watch(self):
+        f = self.t_watch
+        tk.Label(f, text="Process Watcher", font=("Segoe UI",13,"bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=6)
+        tk.Label(f, text="Running Roblox clients. Select one and close it if needed.", bg="#1e1e2e", fg="#bac2de", font=("Segoe UI",9)).pack()
+        self.watch_list = tk.Listbox(f, bg="#313244", fg="#cdd6f4", font=("Consolas",9), selectbackground="#45475a", relief="flat")
+        self.watch_list.pack(fill=tk.BOTH, expand=True, padx=12, pady=6)
+        bf = tk.Frame(f, bg="#1e1e2e"); bf.pack(pady=4)
+        tk.Button(bf, text="Refresh", command=self.refresh_watch, bg="#89b4fa", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Close Selected", command=self.close_selected, bg="#f38ba8", fg="#1e1e2e", relief="flat", width=14).pack(side=tk.LEFT, padx=3)
+        self.refresh_watch()
+
+    def refresh_watch(self):
+        self.watch_list.delete(0, tk.END)
+        try:
+            out = subprocess.check_output(["tasklist", "/FI", "IMAGENAME eq RobloxPlayerBeta.exe", "/FO", "CSV", "/V"], text=True, stderr=subprocess.DEVNULL)
+            for line in out.splitlines()[1:]:
+                if "RobloxPlayerBeta" in line:
+                    parts = line.strip('"').split('","')
+                    if len(parts) >= 5:
+                        pid = parts[1]
+                        mem = parts[4]
+                        self.watch_list.insert(tk.END, f"PID {pid}  |  Mem {mem}")
+            if self.watch_list.size() == 0:
+                self.watch_list.insert(tk.END, "No Roblox clients running")
+        except Exception as e:
+            self.watch_list.insert(tk.END, f"Error: {e}")
+
+    def close_selected(self):
+        s = self.watch_list.curselection()
+        if not s: return
+        line = self.watch_list.get(s[0])
+        if "PID" not in line: return
+        try:
+            pid = line.split("PID ")[1].split(" ")[0]
+            subprocess.call(["taskkill", "/F", "/PID", pid], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.log(f"Closed PID {pid}")
+            self.refresh_watch()
+        except Exception as e:
+            self.log(f"Close failed: {e}")
+
     def build_prof(self):
         f = self.t_prof
         tk.Label(f, text="Launch Profiles", font=("Segoe UI",13,"bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=6)
@@ -368,6 +412,13 @@ class App:
         self.logb.see(tk.END)
         self.logb.config(state=tk.DISABLED)
 
+    def auto_refresh_watch(self):
+        try:
+            if hasattr(self, "watch_list"):
+                self.refresh_watch()
+        except: pass
+        self.root.after(5000, self.auto_refresh_watch)
+
     def update_stats(self):
         try:
             out = subprocess.check_output(["tasklist", "/FI", "IMAGENAME eq RobloxPlayerBeta.exe", "/FO", "CSV"], text=True, stderr=subprocess.DEVNULL)
@@ -375,6 +426,7 @@ class App:
             self.lbl_c.config(text=f"Clients: {n}")
         except: pass
         self.root.after(4000, self.update_stats)
+        self.root.after(5000, self.auto_refresh_watch)
 
     def start_mutex(self):
         ok, msg = self.holder.start()
