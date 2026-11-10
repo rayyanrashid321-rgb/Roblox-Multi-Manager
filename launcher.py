@@ -37,6 +37,7 @@ SETTINGS_FILE = APP_DIR / "settings.json"
 FAVS_FILE = APP_DIR / "favorites.json"
 SESSIONS_FILE = APP_DIR / "sessions.json"
 GROUPS_FILE = APP_DIR / "groups.json"
+ACCOUNTS_FILE = APP_DIR / "accounts.json"
 FAVS_FILE = APP_DIR / "favorites.json"
 
 FFLAG_PRESETS = {
@@ -131,6 +132,7 @@ class App:
         self.favorites = load_json(FAVS_FILE, [])
         self.sessions = load_json(SESSIONS_FILE, [])
         self.groups = load_json(GROUPS_FILE, {})
+        self.accounts = load_json(ACCOUNTS_FILE, [])
         self.settings = load_json(SETTINGS_FILE, {"auto_start": False})
         self.search_results = []
 
@@ -148,6 +150,7 @@ class App:
         self.t_favs = tk.Frame(nb, bg="#1e1e2e")
         self.t_watch = tk.Frame(nb, bg="#1e1e2e")
         self.t_groups = tk.Frame(nb, bg="#1e1e2e")
+        self.t_acc = tk.Frame(nb, bg="#1e1e2e")
         self.t_prof = tk.Frame(nb, bg="#1e1e2e")
         self.t_ff = tk.Frame(nb, bg="#1e1e2e")
         self.t_set = tk.Frame(nb, bg="#1e1e2e")
@@ -157,6 +160,7 @@ class App:
         nb.add(self.t_favs, text=" Favorites ")
         nb.add(self.t_watch, text=" Watcher ")
         nb.add(self.t_groups, text=" Groups ")
+        nb.add(self.t_acc, text=" Accounts ")
         nb.add(self.t_prof, text=" Profiles ")
         nb.add(self.t_ff, text=" FastFlags ")
         nb.add(self.t_set, text=" Settings ")
@@ -166,6 +170,7 @@ class App:
         self.build_favs()
         self.build_watch()
         self.build_groups()
+        self.build_acc()
         self.build_prof()
         self.build_ff()
         self.build_set()
@@ -378,6 +383,56 @@ class App:
         self.q.delete(0, tk.END)
         self.q.insert(0, "popular")
         self.do_search()
+
+
+    def build_acc(self):
+        f = self.t_acc
+        tk.Label(f, text="Accounts (local cookies only)", font=("Segoe UI",13,"bold"), bg="#1e1e2e", fg="#cdd6f4").pack(pady=4)
+        tk.Label(f, text="Paste .ROBLOSECURITY cookie. Stored only on this PC. Use at your own risk.", bg="#1e1e2e", fg="#f9e2af", font=("Segoe UI",8)).pack()
+        self.acclist = tk.Listbox(f, bg="#313244", fg="#cdd6f4", font=("Segoe UI",10), selectbackground="#45475a", relief="flat")
+        self.acclist.pack(fill=tk.BOTH, expand=True, padx=12, pady=4)
+        self.refresh_acc()
+        bf = tk.Frame(f, bg="#1e1e2e"); bf.pack(pady=4)
+        tk.Button(bf, text="Add Account", command=self.add_acc, bg="#a6e3a1", fg="#1e1e2e", relief="flat", width=12).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Launch", command=self.launch_acc, bg="#89b4fa", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+        tk.Button(bf, text="Delete", command=self.del_acc, bg="#f38ba8", fg="#1e1e2e", relief="flat", width=10).pack(side=tk.LEFT, padx=3)
+
+    def refresh_acc(self):
+        self.acclist.delete(0, tk.END)
+        for a in self.accounts:
+            self.acclist.insert(tk.END, a.get("name", "Unnamed"))
+
+    def add_acc(self):
+        name = simpledialog.askstring("Account", "Account name (any label):")
+        if not name: return
+        cookie = simpledialog.askstring("Cookie", "Paste .ROBLOSECURITY cookie:")
+        if not cookie: return
+        self.accounts.append({"name": name, "cookie": cookie.strip()})
+        save_json(ACCOUNTS_FILE, self.accounts)
+        self.refresh_acc()
+        self.log(f"Added account {name}")
+
+    def del_acc(self):
+        s = self.acclist.curselection()
+        if s and messagebox.askyesno("Delete", "Delete this account?"):
+            self.accounts.pop(s[0])
+            save_json(ACCOUNTS_FILE, self.accounts)
+            self.refresh_acc()
+
+    def launch_acc(self):
+        s = self.acclist.curselection()
+        if not s: return
+        a = self.accounts[s[0]]
+        # Write cookie then launch (basic method)
+        try:
+            cookie_path = Path(os.environ.get("LOCALAPPDATA", "")) / "Roblox" / "LocalStorage" / "RobloxCookies.dat"
+            # Note: Real cookie injection is more complex; this is a placeholder note
+            # For now just launch and tell user to log in, or implement proper ticket
+            os.startfile("roblox://")
+            self.log(f"Launched for {a['name']} — log in manually if needed (cookie storage is basic)")
+            messagebox.showinfo("Launch", f"Launched Roblox.\nFor full cookie auto-login, more advanced injection is needed.\nAccount: {a['name']}")
+        except Exception as e:
+            self.log(f"Launch error: {e}")
 
     def build_prof(self):
         f = self.t_prof
