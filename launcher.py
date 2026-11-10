@@ -34,6 +34,7 @@ APP_DIR = Path.home() / ".roblox_multi"
 APP_DIR.mkdir(exist_ok=True)
 PROFILES_FILE = APP_DIR / "profiles.json"
 SETTINGS_FILE = APP_DIR / "settings.json"
+FAVS_FILE = APP_DIR / "favorites.json"
 
 FFLAG_PRESETS = {
     "Performance": {"DFFlagTextureQualityOverrideEnabled": True, "DFIntTextureQualityOverride": 1, "FIntDebugForceMSAASamples": 0, "DFFlagDisableDPIScale": True},
@@ -155,6 +156,7 @@ class App:
         self.b_stop = tk.Button(bf, text="Stop", command=self.stop_mutex, bg="#f38ba8", fg="#1e1e2e", font=("Segoe UI",10,"bold"), width=10, height=2, relief="flat", state=tk.DISABLED)
         self.b_stop.pack(side=tk.LEFT, padx=4)
         tk.Button(bf, text="Launch Roblox", command=self.launch_normal, bg="#89b4fa", fg="#1e1e2e", font=("Segoe UI",10,"bold"), width=14, height=2, relief="flat").pack(side=tk.LEFT, padx=4)
+        tk.Button(bf, text="Close All Roblox", command=self.close_all, bg="#f9e2af", fg="#1e1e2e", font=("Segoe UI",10,"bold"), width=16, height=2, relief="flat").pack(side=tk.LEFT, padx=4)
         sf = tk.Frame(f, bg="#313244"); sf.pack(fill=tk.X, padx=12, pady=6)
         self.lbl_c = tk.Label(sf, text="Clients: 0", bg="#313244", fg="#cdd6f4"); self.lbl_c.pack(side=tk.LEFT, padx=10, pady=4)
         self.logb = scrolledtext.ScrolledText(f, height=11, bg="#313244", fg="#cdd6f4", font=("Consolas",9), relief="flat")
@@ -184,7 +186,8 @@ class App:
             name = g.get("name", "?")
             pid = g.get("placeId") or g.get("rootPlaceId") or "?"
             players = g.get("playerCount", 0)
-            self.res.insert(tk.END, f"{name}  |  Place {pid}  |  {players} playing")
+            visits = g.get("visitCount", 0)
+            self.res.insert(tk.END, f"{name}  |  ID {pid}  |  {players} playing  |  {visits:,} visits")
         self.log(f"Found {len(self.search_results)} games")
 
     def launch_selected(self):
@@ -331,6 +334,17 @@ class App:
         self.status.config(text="Multi-instance: Stopped", fg="#f38ba8")
         self.b_start.config(state=tk.NORMAL)
         self.b_stop.config(state=tk.DISABLED)
+
+
+    def close_all(self):
+        if not messagebox.askyesno("Close All", "Close every Roblox window?"):
+            return
+        try:
+            subprocess.call(["taskkill", "/F", "/IM", "RobloxPlayerBeta.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.call(["taskkill", "/F", "/IM", "RobloxCrashHandler.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.log("Closed all Roblox processes")
+        except Exception as e:
+            self.log(f"Close error: {e}")
 
     def on_close(self):
         if self.holder.running and not messagebox.askyesno("Quit", "Stop and quit?"): return
