@@ -173,6 +173,7 @@ class App:
         self.b_stop.pack(side=tk.LEFT, padx=4)
         tk.Button(bf, text="Launch Roblox", command=self.launch_normal, bg="#89b4fa", fg="#1e1e2e", font=("Segoe UI",10,"bold"), width=14, height=2, relief="flat").pack(side=tk.LEFT, padx=4)
         tk.Button(bf, text="Close All Roblox", command=self.close_all, bg="#f9e2af", fg="#1e1e2e", font=("Segoe UI",10,"bold"), width=16, height=2, relief="flat").pack(side=tk.LEFT, padx=4)
+        tk.Button(bf, text="Launch Many", command=self.launch_many, bg="#cba6f7", fg="#1e1e2e", font=("Segoe UI",10,"bold"), width=14, height=2, relief="flat").pack(side=tk.LEFT, padx=4)
         sf = tk.Frame(f, bg="#313244"); sf.pack(fill=tk.X, padx=12, pady=6)
         self.lbl_c = tk.Label(sf, text="Clients: 0", bg="#313244", fg="#cdd6f4"); self.lbl_c.pack(side=tk.LEFT, padx=10, pady=4)
         self.logb = scrolledtext.ScrolledText(f, height=11, bg="#313244", fg="#cdd6f4", font=("Consolas",9), relief="flat")
@@ -404,6 +405,28 @@ class App:
         if p.get("link_code"): url += f"&privateServerLinkCode={p['link_code']}"
         os.startfile(url)
         self.log(f"Launched profile {p['name']}")
+
+
+    def launch_many(self):
+        count = simpledialog.askinteger("Launch Many", "How many Roblox windows? (1-50)", minvalue=1, maxvalue=50)
+        if not count: return
+        delay = simpledialog.askinteger("Delay", "Seconds between each launch? (1-10)", minvalue=1, maxvalue=10)
+        if delay is None: delay = 2
+        place = simpledialog.askstring("Place ID", "Place ID to launch (or leave blank for normal Roblox):")
+        def do():
+            for i in range(count):
+                if place and place.isdigit():
+                    os.startfile(f"roblox://placeId={place}")
+                else:
+                    exe = find_roblox_exe()
+                    if exe:
+                        subprocess.Popen([str(exe)])
+                self.log(f"Launched {i+1}/{count}")
+                if i < count - 1:
+                    time.sleep(delay)
+            self.log("Finished multi-launch")
+        threading.Thread(target=do, daemon=True).start()
+        messagebox.showinfo("Starting", f"Launching {count} windows with {delay}s delay. Watch the log.")
 
     def launch_normal(self):
         exe = find_roblox_exe()
